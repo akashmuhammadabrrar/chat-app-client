@@ -66,7 +66,7 @@ export const useChatStore = create((set, get) => ({
           messages: [...state.messages, res.data], // Append new message
         }));
 
-        toast.success("✅ Message sent successfully!");
+        toast.success(" Message sent successfully!");
       } else {
         throw new Error("No response data received.");
       }
@@ -88,6 +88,9 @@ export const useChatStore = create((set, get) => ({
     const socket = useAuthStore.getState().socket;
 
     socket.on("newMessage", (newMessage) => {
+      const isMessageSentFromSelectedUser =
+        newMessage.senderId === selectedUser._id;
+      if (!isMessageSentFromSelectedUser) return;
       console.log("📩 Received new message:", newMessage);
       set((state) => ({
         messages: [...state.messages, newMessage],
