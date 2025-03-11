@@ -1,21 +1,46 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useCallback } from "react";
 import { useChatStore } from "../store/useChatStore";
 import ChatHeader from "./ChatHeader";
 import MessageInput from "./MessageInput";
 import MessageSkeleton from "./skeletons/MessageSkeleton";
 import { useAuthStore } from "../store/useAuthStore";
+import { formatMessageTime } from "../lib/utils";
 
 const ChatContainer = () => {
-  const { messages, getMessages, isMessagesLoading, selectedUser } =
-    useChatStore();
+  const {
+    subscribeToMessages,
+    unsubscribeFromMessages,
+    messages,
+    getMessages,
+    isMessagesLoading,
+    selectedUser,
+  } = useChatStore();
   const { authUser } = useAuthStore();
 
-  // Fetch messages when the selected user changes
-  useEffect(() => {
+  // ✅ Memoize functions to prevent them from changing on re-renders
+  const stableGetMessages = useCallback(() => {
     if (selectedUser?._id) {
       getMessages(selectedUser._id);
     }
   }, [selectedUser?._id, getMessages]);
+
+  const stableSubscribe = useCallback(() => {
+    subscribeToMessages();
+  }, [subscribeToMessages]);
+
+  const stableUnsubscribe = useCallback(() => {
+    unsubscribeFromMessages();
+  }, [unsubscribeFromMessages]);
+
+  // ✅ Now the dependency array remains stable
+  useEffect(() => {
+    stableGetMessages();
+    stableSubscribe();
+
+    return () => {
+      stableUnsubscribe();
+    };
+  }, [stableGetMessages, stableSubscribe, stableUnsubscribe]);
 
   // Show loading skeleton if messages are being fetched
   if (isMessagesLoading) {
@@ -53,12 +78,19 @@ const ChatContainer = () => {
             <div className="chat-header mb-1">
               {message.senderId === authUser._id ? "You" : selectedUser.name}
               <time className="text-xs opacity-50 ml-1">
-                {new Date(message.createdAt).toLocaleTimeString()}{" "}
-                {/* Format the timestamp */}
+                {formatMessageTime(message.createdAt)}
               </time>
             </div>
-            <div className="chat-bubble">{message.text}</div>{" "}
-            {/* Render the message text */}
+            <div className="chat-bubble">
+              {message.text && <p>{message.text}</p>}
+              {message.image && (
+                <img
+                  src={message.image}
+                  alt="Sent Image"
+                  className="mt-2 rounded-lg w-40"
+                />
+              )}
+            </div>
           </div>
         ))}
       </div>

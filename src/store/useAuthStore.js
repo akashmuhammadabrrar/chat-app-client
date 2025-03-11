@@ -1,20 +1,24 @@
 import { create } from "zustand";
 import { axiosInstance } from "../lib/axios.js";
 import toast from "react-hot-toast";
+import { io } from "socket.io-client";
 
-export const useAuthStore = create((set) => ({
+const BASE_URL = "http://localhost:5001"; // ✅ Fixed URL
+
+export const useAuthStore = create((set, get) => ({
   authUser: null,
   isSigningUp: false,
   isLoggingIn: false,
   isUpdatingProfile: false,
   isCheckingAuth: true,
   onLineUser: [],
+  socket: null,
 
-  // Check if the user is authenticated
   checkAuth: async () => {
     try {
       const res = await axiosInstance.get("/auth/check");
       set({ authUser: res.data });
+      get().connectSocket();
     } catch (error) {
       console.error("Error in check auth:", error);
       set({ authUser: null });
@@ -23,13 +27,13 @@ export const useAuthStore = create((set) => ({
     }
   },
 
-  // Sign up a new user
   signup: async (data) => {
     set({ isSigningUp: true });
     try {
       const res = await axiosInstance.post("/auth/signup", data);
-      toast.success("Account Created Successfully");
       set({ authUser: res.data });
+      toast.success("Account Created Successfully");
+      get().connectSocket();
     } catch (error) {
       toast.error(
         error.response?.data?.message || "Signup failed. Please try again."
@@ -39,13 +43,14 @@ export const useAuthStore = create((set) => ({
     }
   },
 
-  // Log in an existing user
   login: async (data) => {
     set({ isLoggingIn: true });
     try {
       const res = await axiosInstance.post("/auth/login", data);
       set({ authUser: res.data });
       toast.success("Logged In Successfully");
+
+      get().connectSocket();
     } catch (error) {
       toast.error(
         error.response?.data?.message || "Login failed. Please try again."
@@ -55,12 +60,12 @@ export const useAuthStore = create((set) => ({
     }
   },
 
-  // Log out the current user
   logout: async () => {
     try {
       await axiosInstance.post("/auth/logout");
       set({ authUser: null });
       toast.success("Logged Out Successfully");
+      get().disconnectSocket(); // ✅ Fix: Call disconnectSocket()
     } catch (error) {
       toast.error(
         error.response?.data?.message || "Logout failed. Please try again."
@@ -68,7 +73,6 @@ export const useAuthStore = create((set) => ({
     }
   },
 
-  // Update the user's profile
   updateProfile: async (data) => {
     set({ isUpdatingProfile: true });
     try {
@@ -83,6 +87,35 @@ export const useAuthStore = create((set) => ({
       );
     } finally {
       set({ isUpdatingProfile: false });
+    }
+  },
+
+  connectSocket: () => {
+    const { authUser } = get();
+    if (!authUser || get().socket?.connected) return;
+
+    const socket = io(BASE_URL, {
+      query: {
+        userId: authUser._id,
+      },
+    });
+
+    socket.on("connect", () => {
+      console.log(" Connected to Socket.io:", socket.id);
+    });
+
+    set({ socket }); //  Store socket in Zustand
+    socket.on("getOnlineUsers", (userIds) => {
+      set({ onLineUser: userIds });
+    });
+  },
+
+  disconnectSocket: () => {
+    const { socket } = get();
+    if (socket) {
+      socket.disconnect();
+      console.log("❌ Disconnected from Socket.io");
+      set({ socket: null });
     }
   },
 }));

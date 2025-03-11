@@ -1,6 +1,7 @@
 import toast from "react-hot-toast";
 import { create } from "zustand";
 import { axiosInstance } from "../lib/axios";
+import { useAuthStore } from "./useAuthStore";
 
 export const useChatStore = create((set, get) => ({
   messages: [],
@@ -45,27 +46,59 @@ export const useChatStore = create((set, get) => ({
 
   // Send a message
   sendMessage: async (messageData) => {
-    //  Renamed to "sendMessage"
     const { selectedUser, messages } = get();
+
     if (!selectedUser || !selectedUser._id) {
-      //  Check if selectedUser exists
       toast.error("No user selected for sending a message.");
       return;
     }
+
     try {
+      console.log("📤 Sending message to:", selectedUser._id, messageData);
+
       const res = await axiosInstance.post(
         `/messages/send/${selectedUser._id}`,
         messageData
       );
-      set((state) => ({ messages: [...state.messages, res.data] })); //  Functional update
-      toast.success("Message sent successfully!"); //  Success toast
+
+      if (res.data) {
+        set((state) => ({
+          messages: [...state.messages, res.data], // Append new message
+        }));
+
+        toast.success("✅ Message sent successfully!");
+      } else {
+        throw new Error("No response data received.");
+      }
     } catch (error) {
+      console.error("❌ Error sending message:", error);
       toast.error(
         error.response?.data?.message ||
           error.message ||
           "Failed to send message."
       );
     }
+  },
+
+  // Subscribe to real-time messages
+  subscribeToMessages: () => {
+    const { selectedUser } = get();
+    if (!selectedUser) return;
+
+    const socket = useAuthStore.getState().socket;
+
+    socket.on("newMessage", (newMessage) => {
+      console.log("📩 Received new message:", newMessage);
+      set((state) => ({
+        messages: [...state.messages, newMessage],
+      }));
+    });
+  },
+
+  // Unsubscribe from real-time messages
+  unsubscribeFromMessages: () => {
+    const socket = useAuthStore.getState().socket;
+    socket.off("newMessage");
   },
 
   // Set the selected user

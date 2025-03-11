@@ -3,17 +3,22 @@ import { useChatStore } from "../store/useChatStore";
 import { Image, Send, X } from "lucide-react";
 import toast from "react-hot-toast";
 
+const MAX_FILE_SIZE = 2 * 1024 * 1024; // 2MB
+
 const MessageInput = () => {
   const [text, setText] = useState("");
   const [imagePreview, setImagePreview] = useState(null);
   const fileInputRef = useRef(null);
-  const { sendMessage } = useChatStore(); //  Use the fixed store
+  const { sendMessage } = useChatStore();
 
   const handleImageChange = (e) => {
     const file = e.target.files[0];
     if (!file.type.startsWith("image/")) {
-      //  Fixed typo
-      toast.error("Please Select An Image File");
+      toast.error("Please select an image file");
+      return;
+    }
+    if (file.size > MAX_FILE_SIZE) {
+      toast.error("Image size must be less than 2MB");
       return;
     }
     const reader = new FileReader();
@@ -37,12 +42,11 @@ const MessageInput = () => {
         text: text.trim(),
         image: imagePreview,
       });
-      // Clear form
       setText("");
       setImagePreview(null);
       if (fileInputRef.current) fileInputRef.current.value = "";
     } catch (error) {
-      console.error("failed to send message", error);
+      console.error("Failed to send message", error);
     }
   };
 
@@ -58,8 +62,7 @@ const MessageInput = () => {
             />
             <button
               onClick={removeImage}
-              className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-base-300
-              flex items-center justify-center"
+              className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-base-300 flex items-center justify-center"
               type="button">
               <X className="size-3" />
             </button>
@@ -85,7 +88,7 @@ const MessageInput = () => {
           />
           <button
             type="button"
-            className={`hidden sm:flex btn btn-circle${
+            className={`btn btn-circle ${
               imagePreview ? "text-emerald-500" : "text-zinc-400"
             }`}
             onClick={() => fileInputRef.current?.click()}>
@@ -95,7 +98,7 @@ const MessageInput = () => {
         <button
           type="submit"
           className="btn btn-sm btn-circle"
-          disabled={!text.trim() && !imagePreview}>
+          disabled={!(text.trim() || imagePreview)}>
           <Send size={20} />
         </button>
       </form>
