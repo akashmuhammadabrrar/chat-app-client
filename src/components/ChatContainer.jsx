@@ -1,4 +1,4 @@
-import React, { useEffect, useCallback } from "react";
+import React, { useEffect, useCallback, useRef } from "react";
 import { useChatStore } from "../store/useChatStore";
 import ChatHeader from "./ChatHeader";
 import MessageInput from "./MessageInput";
@@ -16,8 +16,9 @@ const ChatContainer = () => {
     selectedUser,
   } = useChatStore();
   const { authUser } = useAuthStore();
+  const messageEndRef = useRef(null);
 
-  // ✅ Memoize functions to prevent them from changing on re-renders
+  //  Memoize functions to prevent them from changing on re-renders
   const stableGetMessages = useCallback(() => {
     if (selectedUser?._id) {
       getMessages(selectedUser._id);
@@ -32,7 +33,7 @@ const ChatContainer = () => {
     unsubscribeFromMessages();
   }, [unsubscribeFromMessages]);
 
-  // ✅ Now the dependency array remains stable
+  //  Now the dependency array remains stable
   useEffect(() => {
     stableGetMessages();
     stableSubscribe();
@@ -41,6 +42,12 @@ const ChatContainer = () => {
       stableUnsubscribe();
     };
   }, [stableGetMessages, stableSubscribe, stableUnsubscribe]);
+
+  useEffect(() => {
+    if (messageEndRef.current && messages) {
+      messageEndRef.current.scrollIntoView({ behavior: "smooth" });
+    }
+  }, [messages]);
 
   // Show loading skeleton if messages are being fetched
   if (isMessagesLoading) {
@@ -62,7 +69,8 @@ const ChatContainer = () => {
             key={message._id}
             className={`chat ${
               message.senderId === authUser._id ? "chat-end" : "chat-start"
-            }`}>
+            }`}
+            ref={messageEndRef}>
             <div className="chat-image avatar">
               <div className="size-10 rounded-full border">
                 <img
