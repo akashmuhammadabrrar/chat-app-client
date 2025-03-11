@@ -4,10 +4,11 @@ import { useChatStore } from "../store/useChatStore";
 
 const ChatHeader = () => {
   const { selectedUser, setSelectedUser } = useChatStore();
-  const { onlineUsers } = useAuthStore();
+  const { onLineUser } = useAuthStore(); // Use the consistent online users array
 
-  // Ensure onlineUsers is an array to avoid `includes` error
-  const isOnline = (onlineUsers ?? []).includes(selectedUser?._id);
+  // Check if the selected user is online
+  const isOnline =
+    Array.isArray(onLineUser) && onLineUser.includes(selectedUser?._id);
 
   if (!selectedUser) return null; // Prevent rendering if no user is selected
 
@@ -21,24 +22,31 @@ const ChatHeader = () => {
               <img
                 src={selectedUser?.profilePic || "/avatar.png"}
                 alt={selectedUser?.fullName || "User"}
+                className="rounded-full object-cover"
               />
             </div>
           </div>
 
-          {/* User info */}
+          {/* User Info */}
           <div>
             <h3 className="font-medium">
               {selectedUser?.fullName || "Unknown"}
             </h3>
             <p className="text-sm text-base-content/70">
-              {isOnline ? "Online" : "Offline"}
+              {isOnline ? (
+                <span className="text-green-500">Online</span>
+              ) : (
+                <span className="text-gray-500">Offline</span>
+              )}
             </p>
           </div>
         </div>
 
         {/* Close button */}
-        <button onClick={() => setSelectedUser(null)}>
-          <X />
+        <button
+          onClick={() => setSelectedUser(null)}
+          className="p-1 hover:bg-base-300 rounded transition">
+          <X className="w-5 h-5" />
         </button>
       </div>
     </div>
